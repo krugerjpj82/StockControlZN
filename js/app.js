@@ -30,30 +30,35 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const data = new Uint8Array(event.target.result);
                 const workbook = XLSX.read(data, { type: 'array' });
-                // Read the first sheet
                 const firstSheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[firstSheetName];
                 
-                // Convert to JSON
-                const json = XLSX.utils.sheet_to_json(worksheet);
+                // --- MODIFICATION HERE ---
+                // { range: 3 } tells it to skip rows 1, 2, and 3, and start at Row 4
+                const json = XLSX.utils.sheet_to_json(worksheet, { range: 3 });
 
-                console.log("Found Excel Headers:", Object.keys(json[0])); // Debugging
+                // Debug: Check if we are grabbing the right headers now
+                if(json.length > 0) {
+                    console.log("Headers detected on Line 4:", Object.keys(json[0]));
+                }
 
-                // Map Excel rows to App Data
                 inventory = json.map(row => {
                     return {
-                        // We check multiple common names for each column
+                        // Support various header names (English & Chinese)
                         name: row['Item Name'] || row['Name'] || row['Product'] || row['Description'] || row['项目名称'] || 'Unknown',
                         category: row['Category'] || row['Cat'] || row['Group'] || row['类别'] || 'General',
                         qty: parseNumber(row['Qty'] || row['Quantity'] || row['Stock'] || row['On Hand'] || row['数量']),
-                        sales: 0, // Will be filled by PDF later
+                        sales: 0,
                         price: parseNumber(row['Price'] || row['Sales Price'] || row['Retail'] || row['销售价']),
                         cost: parseNumber(row['Cost'] || row['Cost Price'] || row['Unit Cost'] || row['成本价'])
                     };
                 });
 
+                // Filter out empty rows that might be caught accidentally
+                inventory = inventory.filter(item => item.name !== 'Unknown');
+
                 renderTable();
-                elements.excelStatus.textContent = `✅ Loaded ${inventory.length} items`;
+                elements.excelStatus.textContent = `✅ Loaded ${inventory.length} items (Headers from Row 4)`;
                 elements.excelStatus.style.color = "#28a745";
             } catch (err) {
                 console.error("Excel Error:", err);
@@ -93,14 +98,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 let matchedCount = 0;
                 inventory.forEach(item => {
                     if (item.name === 'Unknown') return;
-
-                    // Clean name for regex (escape special chars)
                     const cleanName = item.name.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                    
-                    // Look for: Name + any spaces + Number
                     const regex = new RegExp(`${cleanName}\\s+(\\d+)`, 'i');
                     const match = fullText.match(regex);
-                    
                     if (match) {
                         item.sales = parseInt(match[1]);
                         matchedCount++;
@@ -120,10 +120,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- Helper Functions ---
-
     function parseNumber(val) {
         if (!val) return 0;
-        // Handle strings like "$1,200.50" or "1 200"
         if (typeof val === 'string') {
             val = val.replace(/[^0-9.-]+/g, "");
         }
@@ -132,9 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderTable() {
         elements.tableBody.innerHTML = inventory.map(item => {
-            // Calculation: (Sales * 1.5) - Stock
             const orderNeeded = Math.max(0, (item.sales * 1.5) - item.qty).toFixed(0);
-            
             return `
                 <tr>
                     <td>${item.name}</td>
