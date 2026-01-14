@@ -51,6 +51,46 @@ class StockControlApp {
         });
     }
 
+    async loadStockData() {
+        try {
+            const transaction = this.db.transaction(['stockItems'], 'readonly');
+            const store = transaction.objectStore('stockItems');
+            const request = store.getAll();
+            
+            return new Promise((resolve, reject) => {
+                request.onsuccess = () => {
+                    this.stockData = request.result || [];
+                    this.filteredData = [...this.stockData];
+                    resolve(this.stockData);
+                };
+                request.onerror = () => reject(request.error));
+            });
+        } catch (error) {
+            console.error('Load data error:', error);
+            this.stockData = [];
+            this.filteredData = [];
+        }
+    }
+
+    async saveStockData() {
+        try {
+            const transaction = this.db.transaction(['stockItems'], 'readwrite');
+            const store = transaction.objectStore('stockItems');
+            const request = store.clear();
+            request.onsuccess = () => {
+                this.stockData.forEach(item => {
+                    store.add(item).onsuccess = null;
+                });
+            };
+            request.onerror = () => {
+                console.error('Save data error:', request.error);
+                this.showNotification('Failed to save data', 'error');
+            };
+        } catch (error) {
+            console.error('Save data error:', error);
+        }
+    }
+
     setupEventListeners() {
         console.log('Setting up event listeners...');
         
@@ -422,7 +462,7 @@ class StockControlApp {
         // You would also need to update the text content of the UI elements
         // For example:
         document.getElementById('header').innerText = newLang === 'zh' ? '库存管理' : 'Stock Control Manager';
-        // document.getElementById('exportExcel').innerText = newLang === 'zh' ? '导出Excel' : 'Export Excel';
+        document.getElementById('exportExcel').innerText = newLang === 'zh' ? '导出Excel' : 'Export Excel';
         // Add similar updates for other UI elements
 
         // Show a notification to confirm language change
