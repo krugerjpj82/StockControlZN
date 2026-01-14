@@ -1,84 +1,445 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>库存管理系统</title>
-    <link rel="manifest" href="./manifest.json">
+    <title>Stock Control Manager</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2196F3">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <script defer src="js/app.js"></script>
     <style>
-        /* 样式保持不变 */
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Microsoft YaHei', sans-serif; max-width: 1400px; margin: 0 auto; padding: 20px; background-color: #f5f5f5; }
-        .container { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        header { background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-radius: 8px; }
-        header h1 { color: #2196F3; font-size: 1.8rem; margin: 0; }
-        .upload-section { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 2rem; margin-bottom: 2rem; }
-        .upload-card { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: 1px solid #e9ecef; }
-        .file-status { font-size: 12px; margin-top: 5px; min-height: 16px; font-weight: 500; }
-        .file-status.success { color: #28a745; }
-        .summary-section { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
-        .summary-card { background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center; }
-        .summary-value { font-size: 2rem; font-weight: bold; color: #2196F3; }
-        .table-section { background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #dee2e6; }
-        th { background-color: #f8f9fa; font-weight: 600; }
-        tr.low-stock { background-color: #fff3cd; }
-        .loading-spinner { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 1000; justify-content: center; align-items: center; flex-direction: column; }
-        .spinner { width: 50px; height: 50px; border: 5px solid #f3f3f3; border-top: 5px solid #007bff; border-radius: 50%; animation: spin 1s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        /* {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        header {
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0.1);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            border-radius: 8px;
+        }
+        
+        header h1 {
+            color: #2196F3;
+            font-size: 1.8rem;
+            margin: 0;
+        }
+        
+        .header-actions {
+            display: flex;
+            gap: 1rem;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #545b62;
+        }
+        
+        /* Upload section styles */
+        .upload-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .upload-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border: 1px solid #e9ecef;
+        }
+        
+        .upload-card h3 {
+            margin-bottom: 1rem;
+            color: #495057;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+        
+        .file-input-wrapper {
+            margin-bottom: 1rem;
+        }
+        
+        input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            border: 2px dashed #dee2e6;
+            border-radius: 8px;
+            background: #f8f9fa;
+            cursor: pointer;
+            transition: border-color 0.3s ease;
+        }
+        
+        input[type="file"]:hover {
+            border-color: #adb5bd;
+        }
+        
+        .file-status {
+            font-size: 12px;
+            margin-top: 5px;
+            min-height: 16px;
+            font-weight: 500;
+        }
+        
+        .file-status.success {
+            color: #28a745;
+        }
+        
+        .file-status.error {
+            color: #dc3545;
+        }
+        
+        .file-status.processing {
+            color: #ffc107;
+            font-style: italic;
+        }
+        
+        /* Summary cards */
+        .summary-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .summary-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .summary-card h4 {
+            color: #495057;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+        }
+        
+        .summary-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #2196F3;
+        }
+        
+        /* Table styles */
+        .table-section {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .table-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid #dee2e6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        
+        .table-controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+        
+        .table-controls input,
+        .table-controls select {
+            padding: 8px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        tr:hover {
+            background-color: #f9f9f9;
+        }
+        
+        tr.low-stock {
+            background-color: #fff3cd;
+        }
+        
+        tr.needs-reorder {
+            border-left: 4px solid #ffc107;
+        }
+        
+        .text-danger {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        
+        .actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+        
+        .btn-primary {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        .btn-danger {
+            background-color: #dc3545;
+            color: white;
+        }
+        
+        /* Loading spinner */
+        .loading-spinner {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255,255,255,0.9);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Status messages */
+        .status {
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+            min-height: 1.2rem;
+        }
+        
+        .status.success {
+            color: #28a745;
+        }
+        
+        .status.error {
+            color: #dc3545;
+        }
+        
+        /* Notification system */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            z-index: 1000;
+            animation: slideIn 0.3s ease;
+            max-width: 300px;
+            word-wrap: break-word;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .notification.success {
+            background-color: #28a745;
+        }
+        
+        .notification.error {
+            background-color: #dc3545;
+        }
+        
+        .notification.warning {
+            background-color: #ffc107;
+            color: #212529;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
     </style>
 </head>
 <body>
     <div id="app">
         <header>
-            <h1>📦 库存管理系统</h1>
+            <h1>📦 Stock Control Manager</h1>
             <div class="header-actions">
-                <button id="exportExcel" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 6px; cursor: pointer;">导出 Excel</button>
+                <button id="exportExcel" class="btn btn-secondary">Export Excel</button>
+                <button id="languageButton" class="btn btn-secondary">Language Choice</button>
             </div>
         </header>
+
         <main>
+            <!-- Fixed Upload Section -->
             <section class="upload-section">
                 <div class="upload-card">
-                    <h3>📄 上传销售报告 (PDF)</h3>
-                    <input type="file" id="pdfUpload" accept=".pdf" />
-                    <div class="file-status" id="pdfFileStatus"></div>
+                    <h3>📄 Upload Sales Report (PDF)</h3>
+                    <div class="upload-group">
+                        <div class="file-input-wrapper">
+                            <input type="file" id="pdfUpload" accept=".pdf" />
+                        </div>
+                        <div class="file-status" id="pdfFileStatus"></div>
+                    </div>
+                    <div id="pdfStatus" class="status"></div>
                 </div>
+                
                 <div class="upload-card">
-                    <h3>📊 上传库存数据 (Excel)</h3>
-                    <input type="file" id="excelUpload" accept=".xlsx,.xls" />
-                    <div class="file-status" id="excelFileStatus"></div>
+                    <h3>📊 Upload Stock Data (Excel)</h3>
+                    <div class="upload-group">
+                        <div class="file-input-wrapper">
+                            <input type="file" id="excelUpload" accept=".xlsx,.xls" />
+                        </div>
+                        <div class="file-status" id="excelFileStatus"></div>
+                    </div>
+                    <div id="excelStatus" class="status"></div>
                 </div>
             </section>
+
+            <!-- Summary Section -->
             <section class="summary-section">
-                <div class="summary-card"><h4>项目总数</h4><div id="totalItems" class="summary-value">0</div></div>
-                <div class="summary-card"><h4>总价值 (成本)</h4><div id="totalCostValue" class="summary-value">¥0.00</div></div>
-                <div class="summary-card"><h4>总价值 (销售)</h4><div id="totalSalesValue" class="summary-value">¥0.00</div></div>
-                <div class="summary-card"><h4>低库存项目</h4><div id="lowStockItems" class="summary-value">0</div></div>
+                <div class="summary-card">
+                    <h4>Total Items</h4>
+                    <div id="totalItems" class="summary-value">0</div>
+                </div>
+                <div class="summary-card">
+                    <h4>Total Value (Cost)</h4>
+                    <div id="totalCostValue" class="summary-value">$0.00</div>
+                </div>
+                <div class="summary-card">
+                    <h4>Total Value (Sales)</h4>
+                    <div id="totalSalesValue" class="summary-value">$0.00</div>
+                </div>
+                <div class="summary-card">
+                    <h4>Low Stock Items</h4>
+                    <div id="lowStockItems" class="summary-value">0</div>
+                </div>
             </section>
+
+            <!-- Stock Table -->
             <section class="table-section">
-                <div style="padding: 1.5rem; border-bottom: 1px solid #dee2e6; display: flex; justify-content: space-between; align-items: center;">
-                    <h3>库存清单</h3>
-                    <div>
-                        <input type="text" id="searchInput" placeholder="搜索项目..." style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                        <select id="categoryFilter" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                            <option value="">所有类别</option>
+                <div class="table-header">
+                    <h3>Stock Inventory</h3>
+                    <div class="table-controls">
+                        <input type="text" id="searchInput" placeholder="Search items...">
+                        <select id="categoryFilter">
+                            <option value="">All Categories</option>
                         </select>
                     </div>
                 </div>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>项目名称</th><th>类别</th><th>数量</th><th>每周销量</th><th>补货订单</th><th>销售价</th><th>成本价</th><th>操作</th>
-                        </tr>
-                    </thead>
-                    <tbody id="stockTableBody"></tbody>
-                </table>
+                <div class="table-container">
+                    <table id="stockTable">
+                        <thead>
+                            <tr>
+                                <th>Item Name</th>
+                                <th>Category</th>
+                                <th>Qty Available</th>
+                                <th>Weekly Sales</th>
+                                <th>Stock Order</th>
+                                <th>Sales Price</th>
+                                <th>Cost Price</th>
+                                <th>Total Cost</th>
+                                <th>Total Sales</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stockTableBody">
+                            <!-- Dynamic content -->
+                        </tbody>
+                    </table>
+                </div>
             </section>
         </main>
-        <div id="loadingSpinner" class="loading-spinner"><div class="spinner"></div><p>正在处理...</p></div>
+
+        <!-- Loading Spinner -->
+        <div id="loadingSpinner" class="loading-spinner">
+            <div class="spinner"></div>
+            <p>Processing...</p>
+        </div>
     </div>
+
+    <!-- Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
-<script src="js/app.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <script src="js/app.js"></script>
 </body>
 </html>
