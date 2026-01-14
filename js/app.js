@@ -1,14 +1,12 @@
-// 1. Configure the PDF.js Worker (REQUIRED for reading PDFs)
+// Configure PDF.js Worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     let inventory = [];
 
-    // Register Service Worker with a relative path for GitHub Pages
+    // Register Service Worker
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./service-worker.js')
-            .then(() => console.log("Service Worker 注册成功"))
-            .catch(err => console.log("Service Worker 注册失败", err));
+        navigator.serviceWorker.register('./service-worker.js').catch(console.error);
     }
 
     const elements = {
@@ -20,7 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
         pdfStatus: document.getElementById('pdfFileStatus')
     };
 
-    // 2. Logic to process Excel (Inventory Data)
+    // --- 1. Excel Logic (Populate Table) ---
     elements.excelInput.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -32,24 +30,34 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const data = new Uint8Array(event.target.result);
                 const workbook = XLSX.read(data, { type: 'array' });
-                const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+                // Read the first sheet
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
                 
-                inventory = json.map(row => ({
-                    // Support both English and Chinese headers from your Excel
-                    name: row['Item Name'] || row['项目名称'] || row['Name'] || '未知',
-                    category: row['Category'] || row['类别'] || '常规',
-                    qty: parseFloat(row['Qty Available'] || row['数量'] || row['Qty']) || 0,
-                    sales: 0,
-                    price: parseFloat(row['Sales Price'] || row['销售价'] || row['Price']) || 0,
-                    cost: parseFloat(row['Cost Price'] || row['成本价'] || row['Cost']) || 0
-                }));
+                // Convert to JSON
+                const json = XLSX.utils.sheet_to_json(worksheet);
+
+                console.log("Found Excel Headers:", Object.keys(json[0])); // Debugging
+
+                // Map Excel rows to App Data
+                inventory = json.map(row => {
+                    return {
+                        // We check multiple common names for each column
+                        name: row['Item Name'] || row['Name'] || row['Product'] || row['Description'] || row['项目名称'] || 'Unknown',
+                        category: row['Category'] || row['Cat'] || row['Group'] || row['类别'] || 'General',
+                        qty: parseNumber(row['Qty'] || row['Quantity'] || row['Stock'] || row['On Hand'] || row['数量']),
+                        sales: 0, // Will be filled by PDF later
+                        price: parseNumber(row['Price'] || row['Sales Price'] || row['Retail'] || row['销售价']),
+                        cost: parseNumber(row['Cost'] || row['Cost Price'] || row['Unit Cost'] || row['成本价'])
+                    };
+                });
 
                 renderTable();
-                elements.excelStatus.textContent = `✅ 已加载 ${inventory.length} 个项目`;
+                elements.excelStatus.textContent = `✅ Loaded ${inventory.length} items`;
                 elements.excelStatus.style.color = "#28a745";
             } catch (err) {
                 console.error("Excel Error:", err);
-                elements.excelStatus.textContent = "❌ Excel 解析错误";
+                elements.excelStatus.textContent = "❌ Error reading Excel";
                 elements.excelStatus.style.color = "#dc3545";
             }
             elements.loader.style.display = 'none';
@@ -57,18 +65,18 @@ document.addEventListener('DOMContentLoaded', () => {
         reader.readAsArrayBuffer(file);
     });
 
-    // 3. Logic to process PDF (Sales Data)
+    // --- 2. PDF Logic (Update Sales) ---
     elements.pdfInput.addEventListener('change', async (e) => {
         const file = e.target.files[0];
         if (!file) return;
         
         if (inventory.length === 0) {
-            alert("请先上传 Excel 库存数据！");
+            alert("Please upload Excel file first!");
             return;
         }
 
-        elements.loader.style.display = 'flex';
         const reader = new FileReader();
+        elements.loader.style.display = 'flex';
 
         reader.onload = async function() {
             try {
@@ -82,41 +90,63 @@ document.addEventListener('DOMContentLoaded', () => {
                     fullText += content.items.map(item => item.str).join(" ") + " ";
                 }
 
+                let matchedCount = 0;
                 inventory.forEach(item => {
-                    const escapedName = item.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                    const regex = new RegExp(`${escapedName}\\s+(\\d+)`, 'i');
+                    if (item.name === 'Unknown') return;
+
+                    // Clean name for regex (escape special chars)
+                    const cleanName = item.name.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    
+                    // Look for: Name + any spaces + Number
+                    const regex = new RegExp(`${cleanName}\\s+(\\d+)`, 'i');
                     const match = fullText.match(regex);
-                    if (match) item.sales = parseInt(match[1]);
+                    
+                    if (match) {
+                        item.sales = parseInt(match[1]);
+                        matchedCount++;
+                    }
                 });
 
                 renderTable();
-                elements.pdfStatus.textContent = "✅ 销售数据已合并";
+                elements.pdfStatus.textContent = `✅ Updated ${matchedCount} items from PDF`;
                 elements.pdfStatus.style.color = "#28a745";
             } catch (err) {
-                console.error("PDF Error:", err);
-                elements.pdfStatus.textContent = "❌ PDF 解析错误";
-                elements.pdfStatus.style.color = "#dc3545";
+                console.error(err);
+                elements.pdfStatus.textContent = "❌ Error reading PDF";
             }
             elements.loader.style.display = 'none';
         };
         reader.readAsArrayBuffer(file);
     });
 
+    // --- Helper Functions ---
+
+    function parseNumber(val) {
+        if (!val) return 0;
+        // Handle strings like "$1,200.50" or "1 200"
+        if (typeof val === 'string') {
+            val = val.replace(/[^0-9.-]+/g, "");
+        }
+        return parseFloat(val) || 0;
+    }
+
     function renderTable() {
         elements.tableBody.innerHTML = inventory.map(item => {
-            const order = Math.max(0, (item.sales * 1.5) - item.qty).toFixed(0);
+            // Calculation: (Sales * 1.5) - Stock
+            const orderNeeded = Math.max(0, (item.sales * 1.5) - item.qty).toFixed(0);
+            
             return `
-                <tr class="${item.qty < 5 ? 'low-stock' : ''}">
+                <tr>
                     <td>${item.name}</td>
                     <td>${item.category}</td>
                     <td>${item.qty}</td>
-                    <td><strong>${item.sales}</strong></td>
-                    <td style="color: ${order > 0 ? '#d9534f' : 'inherit'}; font-weight: bold;">
-                        ${order > 0 ? order : '-'}
+                    <td>${item.sales}</td>
+                    <td style="color: ${orderNeeded > 0 ? 'red' : 'green'}; font-weight: bold;">
+                        ${orderNeeded > 0 ? orderNeeded : '-'}
                     </td>
                     <td>¥${item.price.toFixed(2)}</td>
                     <td>¥${item.cost.toFixed(2)}</td>
-                    <td><button onclick="this.closest('tr').remove()" class="btn-del">删除</button></td>
+                    <td><button onclick="this.closest('tr').remove()" style="color:red; cursor:pointer;">删除</button></td>
                 </tr>
             `;
         }).join('');
